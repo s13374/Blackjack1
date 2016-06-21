@@ -23,24 +23,37 @@ struct Karta
 bool Porownaj(Mat obraz1, Mat obraz2) // obraz 1 - kamerka, 2 - karta z pliku
 {
 	Mat gray1, gray2, result, img;
+
+	// zamiana obrazków na szare
 	cvtColor(obraz1, gray1, COLOR_BGR2GRAY);
 	cvtColor(obraz2, gray2, COLOR_BGR2GRAY);
 
 	gray1.copyTo(img);
 
+	// rozmiary nowego okna wynikowego
 	int resultX = gray1.cols - gray2.cols + 1;
 	int resultY = gray1.rows - gray2.rows + 1;
+
+	// wartoœæ minimum i maksimum ekstremum lokalnego
 	double wMinimum, wMaximum;
+	// wspó³rzêdne powy¿szych ekstremów
 	Point wspolrzedneMinimum, wspolrzedneMaximum;
 
 	result.create(resultY, resultX, CV_32FC1);
 
+	// stworzenie wynikowego obrazka z dwóch
 	matchTemplate(gray1, gray2, result, CV_TM_CCORR_NORMED);
+	// normalizacja obrazka
 	normalize(result, result, 0, 1, NORM_MINMAX, -1, Mat());
+	// odnalezienie ekstremów lokalnych i ich wartoœci
 	minMaxLoc(result, &wMinimum, &wMaximum, &wspolrzedneMinimum, &wspolrzedneMaximum, Mat());
+	// teraz pozycja ramki z detekcji jest w zmiennej wspolrzedneMaximum (lewy górny róg)
 
+	// obliczenie pozycji œrodka ramki
 	double srodekX = wspolrzedneMaximum.x + gray2.cols / 2;
 	double srodekY = wspolrzedneMaximum.y + gray2.rows / 2;
+
+	// odleg³oœæ od ramki detekcji do œrodka ekranu
 	double odl = sqrtf(powf(srodekX - srodekKameryX, 2.0) + powf(srodekY - srodekKameryY, 2.0));
 
 	if (odl < 30.0)  // odleglosc pikseli
@@ -128,9 +141,11 @@ int main(int argc, char* argv[])
 	while (true)
 	{
 		Mat frame;
+		// pobranie pojedynczej klatki z kamery
 		cap.retrieve(frame);
 		cap.read(frame);
 
+		// wyrysowanie ramki zielonej na œrodku ekranu
 		rectangle(frame, Point(srodekKameryX - 30, srodekKameryY - 40), Point(srodekKameryX + 30, srodekKameryY + 40), Scalar(0, 255, 0), 2);
 
 		if (rozpoznawanie)
@@ -159,6 +174,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
+		// pokazanie okna
 		imshow("Blackjack", frame);
 
 		if (rozpoznawanie && klatka % 3 == 0)
