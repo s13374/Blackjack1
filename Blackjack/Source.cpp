@@ -20,6 +20,45 @@ struct Karta
 	Mat obraz;
 };
 
+bool Porownaj(Mat obraz1, Mat obraz2) // obraz 1 - kamerka, 2 - karta z pliku
+{
+	Mat gray1, gray2, result, img;
+	cvtColor(obraz1, gray1, COLOR_BGR2GRAY);
+	cvtColor(obraz2, gray2, COLOR_BGR2GRAY);
+
+	gray1.copyTo(img);
+
+	int resultX = gray1.cols - gray2.cols + 1;
+	int resultY = gray1.rows - gray2.rows + 1;
+	double wMinimum, wMaximum;
+	Point wspolrzedneMinimum, wspolrzedneMaximum;
+
+	result.create(resultY, resultX, CV_32FC1);
+
+	matchTemplate(gray1, gray2, result, CV_TM_CCORR_NORMED);
+	normalize(result, result, 0, 1, NORM_MINMAX, -1, Mat());
+	minMaxLoc(result, &wMinimum, &wMaximum, &wspolrzedneMinimum, &wspolrzedneMaximum, Mat());
+
+	double srodekX = wspolrzedneMaximum.x + gray2.cols / 2;
+	double srodekY = wspolrzedneMaximum.y + gray2.rows / 2;
+	double odl = sqrtf(powf(srodekX - srodekKameryX, 2.0) + powf(srodekY - srodekKameryY, 2.0));
+
+	if (odl < 30.0)  // odleglosc pikseli
+		return true;
+	else
+		return false;
+}
+
+int PorownajCalosc(vector<Karta>& karty, Mat obrazZkamery)
+{
+	for (int i = 0; i < karty.size(); i++)
+	{
+		if (Porownaj(obrazZkamery, karty[i].obraz))
+			return i;
+	}
+	return -1;
+}
+
 int StringDoPunkty(string x)
 {
 	if (x == "2")
@@ -94,11 +133,43 @@ int main(int argc, char* argv[])
 
 		rectangle(frame, Point(srodekKameryX - 30, srodekKameryY - 40), Point(srodekKameryX + 30, srodekKameryY + 40), Scalar(0, 255, 0), 2);
 
+		if (rozpoznawanie)
+		{
+			putText(frame, "Rozpoznaje karte...", cvPoint(30, 30),
+				FONT_HERSHEY_COMPLEX_SMALL, 0.6, cvScalar(50, 255, 50), 1);
+		}
+		else
+		{
+			if (punkty < 21)
+			{
+				char buffer[100];
+				sprintf_s(buffer, "Twoje punkty: %d   Wcisnij 'w', aby rozpoznac karte.", punkty);
+				putText(frame, buffer, cvPoint(30, 30),
+					FONT_HERSHEY_COMPLEX_SMALL, 0.6, cvScalar(50, 255, 50), 1);
+			}
+			else if (punkty == 21)
+			{
+				putText(frame, "Wygrales! Wcisnij 'n', aby zagrac od nowa.", cvPoint(30, 30),
+					FONT_HERSHEY_COMPLEX_SMALL, 0.6, cvScalar(50, 255, 50), 1);
+			}
+			else
+			{
+				putText(frame, "Przegrales! Wcisnij 'n', aby zagrac od nowa.", cvPoint(30, 30),
+					FONT_HERSHEY_COMPLEX_SMALL, 0.6, cvScalar(255, 50, 50), 1);
+			}
+		}
+
 		imshow("Blackjack", frame);
 
 		if (rozpoznawanie && klatka % 3 == 0)
 		{
-
+			int wynik = PorownajCalosc(karty, frame);
+			if (wynik != -1)
+			{
+				rozpoznawanie = false;
+				string x = karty[wynik].symbol;
+				punkty += StringDoPunkty(x);
+			}
 		}
 
 		int key = waitKey(30);
